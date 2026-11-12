@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Escala de Extra - Vigilantes</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f1f5f9;
+        }
+        .proximo-badge {
+            background-color: #002060;
+            color: #ffffff;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 6px -1px rgba(0, 32, 96, 0.3);
+        }
+        .table-border-excel {
+            border: 2px solid #334155;
+        }
+        .table-border-excel th, .table-border-excel td {
+            border: 1px solid #94a3b8;
+        }
+        .pulse-slow {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+    </style>
+</head>
+<body class="text-slate-800 min-h-screen flex flex-col justify-between selection:bg-blue-900 selection:text-white">
+
+    <!-- Toast Notifications Container -->
+    <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- Modal System -->
+    <div id="modal-overlay" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-40 hidden flex items-center justify-center p-4">
+        <div id="modal-content" class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 border border-slate-100 transform transition-all scale-95 opacity-0">
+            <!-- Dynamic Modal Content -->
+        </div>
+    </div>
+
+    <!-- MAIN CONTAINER -->
+    <div class="max-w-4xl mx-auto w-full px-3 py-4 sm:px-6 sm:py-6 flex-grow">
+        
+        <!-- HEADER APP BAR -->
+        <header class="bg-white rounded-2xl shadow-md p-4 mb-4 border border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-3 w-full sm:w-auto">
+                <div class="w-12 h-12 rounded-xl bg-blue-950 flex items-center justify-center text-white text-xl shadow-md">
+                    <i class="fa-solid font-bold fa-shield-halved"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-extrabold text-slate-900 tracking-tight leading-tight">ESCALA DE EXTRA</h1>
+                    <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Controle Operacional de Vigilantes</p>
+                </div>
+            </div>
+
+            <!-- Status Indicator & Admin Button -->
+            <div class="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+                <div id="sync-status" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 text-xs font-medium text-slate-600">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span id="sync-text">Modo Local</span>
+                </div>
+                <button id="btn-toggle-admin" onclick="openAdminAuthModal()" class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all bg-slate-100 text-slate-700 hover:bg-slate-200 active:scale-95 shadow-sm">
+                    <i class="fa-solid fa-lock"></i>
+                    <span id="admin-btn-label">Modo Encarregado</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- ADMIN CONTROLS PANEL (HIDDEN BY DEFAULT) -->
+        <div id="admin-panel" class="hidden mb-4 bg-gradient-to-r from-blue-900 to-indigo-950 text-white rounded-2xl p-4 sm:p-5 shadow-xl border border-blue-800">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 mb-4 border-b border-blue-800/80">
+                <div class="flex items-center gap-2">
+                    <span class="bg-amber-400 text-slate-950 text-[10px] font-black uppercase px-2 py-0.5 rounded">PAINEL ENCARREGADO</span>
+                    <span class="text-xs text-blue-200">Sua sessão de gerenciamento está ativa</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="openConfigModal()" title="Configuração de Sincronização Firebase" class="text-xs bg-blue-800/60 hover:bg-blue-700 px-2.5 py-1.5 rounded-lg border border-blue-700 transition">
+                        <i class="fa-solid fa-gear mr-1"></i> Firebase / Nuvem
+                    </button>
+                    <button onclick="logoutAdmin()" class="text-xs bg-rose-600/80 hover:bg-rose-600 px-2.5 py-1.5 rounded-lg transition font-semibold">
+                        <i class="fa-solid fa-right-from-bracket mr-1"></i> Sair
+                    </button>
+                </div>
+            </div>
+
+            <!-- Action Area -->
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+                <div class="md:col-span-5 bg-white/10 backdrop-blur-md rounded-xl p-3 border border-white/10">
+                    <label class="text-[11px] font-bold uppercase tracking-wider text-blue-200 block mb-1">Registrar para Vigilante:</label>
+                    <select id="select-vigilante-action" class="w-full bg-slate-900 text-white border border-blue-700 rounded-lg px-3 py-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-amber-400">
+                        <!-- Options generated dynamically -->
+                    </select>
+                </div>
+
+                <div class="md:col-span-4 bg-white/10 backdrop-blur-md rounded-xl p-3 border border-white/10">
+                    <label class="text-[11px] font-bold uppercase tracking-wider text-blue-200 block mb-1">Observação / Turno (Opcional):</label>
+                    <input type="text" id="input-obs" placeholder="Ex: Diurno, Plantão 12x36" class="w-full bg-slate-900 text-white border border-blue-700 rounded-lg px-3 py-2 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400">
+                </div>
+
+                <div class="md:col-span-3 flex sm:flex-col md:flex-row gap-2">
+                    <button onclick="handleRegisterAction(true)" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 px-3 rounded-xl shadow-lg transition active:scale-95 flex items-center justify-center gap-1.5 text-xs sm:text-sm">
+                        <i class="fa-solid fa-circle-check text-base"></i> ACEITOU
+                    </button>
+                    <button onclick="handleRegisterAction(false)" class="flex-1 bg-rose-600 hover:bg-rose-500 text-white font-bold py-2.5 px-3 rounded-xl shadow-lg transition active:scale-95 flex items-center justify-center gap-1.5 text-xs sm:text-sm">
+                        <i class="fa-solid fa-circle-xmark text-base"></i> NEGOU
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap items-center justify-between gap-2 mt-4 pt-3 border-t border-blue-800/60 text-xs">
+                <button onclick="handleUndoLast()" class="text-blue-200 hover:text-white flex items-center gap-1 font-medium underline">
+                    <i class="fa-solid fa-rotate-left"></i> Desfazer último lançamento
+                </button>
+                <button onclick="confirmResetScale()" class="text-rose-300 hover:text-rose-100 flex items-center gap-1 font-medium">
+                    <i class="fa-solid fa-arrows-rotate"></i> Resetar escala para 10º ELISNA
+                </button>
+            </div>
+        </div>
+
+        <!-- HERO HIGHLIGHT CARD (PRÓXIMO DA VEZ) -->
+        <div class="bg-white rounded-2xl shadow-md p-4 sm:p-5 mb-5 border border-slate-200 relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-32 h-32 bg-blue-900/5 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div class="flex items-center gap-3 sm:gap-4">
+                    <div class="proximo-badge px-3.5 py-2 rounded-xl text-center shadow-md">
+                        <span class="block text-[10px] tracking-wider uppercase font-extrabold opacity-80">STATUS</span>
+                        <span class="text-sm font-black whitespace-nowrap">PRÓXIMO 1</span>
+                    </div>
+                    <div>
+                        <span class="text-xs font-extrabold text-blue-950 uppercase tracking-widest block">Vigilante da Vez</span>
+                        <h2 id="current-hero-name" class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">---</h2>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 bg-slate-50 px-4 py-2 rounded-xl border border-slate-200 w-full sm:w-auto justify-between sm:justify-start">
+                    <span class="text-xs font-semibold text-slate-500">Posição na Fila:</span>
+                    <span id="current-hero-pos" class="text-sm font-black text-blue-950 bg-blue-100 px-2.5 py-0.5 rounded-md">--º</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- MAIN TABLE CONTAINER (FIELE À FOTO EXCEL) -->
+        <div class="bg-white rounded-2xl shadow-md overflow-hidden border border-slate-200 mb-6">
+            <div class="p-4 border-b border-slate-200 bg-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                    <h3 class="font-bold text-slate-800 text-base">Escala de Rodízio de Extra</h3>
+                    <p class="text-xs text-slate-500">Ao aceitar ou negar, o indicador "PRÓXIMO 1" avança para a próxima posição.</p>
+                </div>
+                <div class="text-xs text-slate-600 font-semibold flex items-center gap-3">
+                    <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-emerald-500 inline-block"></span> Aceitou</span>
+                    <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-rose-500 inline-block"></span> Negou</span>
+                </div>
+            </div>
+
+            <!-- Responsive Table Wrapper -->
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-700 text-white text-xs uppercase font-extrabold tracking-wider">
+                            <th class="py-3 px-3 text-center border-r border-slate-600 w-32">SEQUÊNCIA</th>
+                            <th class="py-3 px-3 text-center border-r border-slate-600 w-16">Nº</th>
+                            <th class="py-3 px-4 border-r border-slate-600">VIGILANTES (NOMES)</th>
+                            <th class="py-3 px-3 text-center border-r border-slate-600 w-24">ACEITOS</th>
+                            <th class="py-3 px-3 text-center w-24">NEGADOS</th>
+                        </tr>
+                    </thead>
+                    <tbody id="vigilantes-table-body" class="divide-y divide-slate-200 text-sm font-medium">
+                        <!-- Dynamic Rows -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- RECENT ACTIVITY LOG -->
+        <div class="bg-white rounded-2xl shadow-md p-4 sm:p-5 border border-slate-200">
+            <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
+                <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                    <i class="fa-solid fa-clock-rotate-left text-blue-900"></i> Histórico Recente de Ocorrências
+                </h3>
+                <span id="history-count" class="text-xs font-bold text-slate-400">0 registros</span>
+            </div>
+            <div id="history-list" class="space-y-2 max-h-60 overflow-y-auto pr-1">
+                <!-- Dynamic Log Items -->
+                <p class="text-xs text-slate-400 italic text-center py-4">Nenhum registro efetuado ainda.</p>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="bg-white border-t border-slate-200 py-4 px-4 text-center text-xs text-slate-500 mt-6">
+        <p class="font-semibold text-slate-700">Sistema de Escala de Extra — Vigilância</p>
+        <p class="text-[11px] mt-0.5">Desenvolvido para acompanhamento em tempo real via celular &amp; GitHub Pages.</p>
+    </footer>
+
+    <!-- APP LOGIC & FIREBASE SUPPORT -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- LIST OF 21 GUARD NAMES IN EXACT ORDER ---
+        const INITIAL_VIGILANTES = [
+            "MARCILENE", "LUCAS", "JASELMO", "JOSIVAN", "MÁRIO", 
+            "AURÉLIO", "CLOVES", "STAYNE", "TAVARES", "ELISNA", 
+            "DEVISON", "BALBINO", "GONÇALVES", "ARISTIDES", "LEMOS", 
+            "GEAN", "CORREIA", "SALVADOR", "WASHINGTON", "HELENA", "VITÓRIA"
+        ];
+
+        // Default initial state (10º position = index 9 = ELISNA)
+        const DEFAULT_STATE = {
+            currentIndex: 9, // 10º ELISNA
+            history: [],
+            counts: INITIAL_VIGILANTES.map(() => ({ accepted: 0, denied: 0 }))
+        };
+
+        let appState = JSON.parse(JSON.stringify(DEFAULT_STATE));
+        let isAdmin = false;
+        let db = null;
+        let unsubscribeFirestore = null;
+
+        // --- LOCAL STORAGE HELPERS ---
+        const LOCAL_STORAGE_KEY = "escala_extra_vigilantes_db_v4";
+        const FIREBASE_CONFIG_KEY = "escala_extra_firebase_cfg";
+
+        function loadLocalState() {
+            const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
+            if (saved) {
+                try {
+                    appState = JSON.parse(saved);
+                } catch (e) {
+                    console.error("Erro ao carregar dados locais", e);
+                }
+            }
+        }
+
+        function saveLocalState() {
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(appState));
+        }
+
+        // --- RENDER FUNCTIONS ---
+        function renderUI() {
+            renderTable();
+            renderHero();
+            renderAdminPanel();
+            renderHistory();
+            populateSelectOptions();
+        }
+
+        function renderHero() {
+            const nameEl = document.getElementById("current-hero-name");
+            const posEl = document.getElementById("current-hero-pos");
+            
+            const currentName = INITIAL_VIGILANTES[appState.currentIndex];
+            const currentPos = appState.currentIndex + 1;
+
+            if (nameEl) nameEl.textContent = currentName;
+            if (posEl) posEl.textContent = `${currentPos}º`;
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById("vigilantes-table-body");
+            if (!tbody) return;
+
+            tbody.innerHTML = "";
+
+            INITIAL_VIGILANTES.forEach((name, index) => {
+                const pos = index + 1;
+                const isCurrent = index === appState.currentIndex;
+                const counts = appState.counts[index] || { accepted: 0, denied: 0 };
+
+                const tr = document.createElement("tr");
+                tr.className = isCurrent 
+                    ? "bg-blue-50/90 font-bold border-l-4 border-l-blue-900 transition-colors" 
+                    : "hover:bg-slate-50 transition-colors";
+
+                // Cell 1: SEQUÊNCIA
+                const tdSeq = document.createElement("td");
+                tdSeq.className = "py-2.5 px-3 text-center border-r border-slate-200";
+                if (isCurrent) {
+                    tdSeq.innerHTML = `
+                        <div class="proximo-badge py-1 px-2.5 rounded-lg text-xs font-black tracking-wide uppercase inline-block shadow-sm">
+                            PRÓXIMO 1
+                        </div>
+                    `;
+                } else {
+                    tdSeq.innerHTML = `<span class="text-slate-300 text-xs font-bold">—</span>`;
+                }
+
+                // Cell 2: Nº
+                const tdNum = document.createElement("td");
+                tdNum.className = `py-2.5 px-3 text-center font-extrabold border-r border-slate-200 ${isCurrent ? 'text-blue-950 text-base' : 'text-slate-700'}`;
+                tdNum.textContent = `${pos}º`;
+
+                // Cell 3: VIGILANTES (NOMES)
+                const tdName = document.createElement("td");
+                tdName.className = `py-2.5 px-4 font-black border-r border-slate-200 tracking-wide uppercase ${isCurrent ? 'text-blue-950 text-base' : 'text-slate-800'}`;
+                tdName.textContent = name;
+
+                // Cell 4: ACEITOS
+                const tdAceitos = document.createElement("td");
+                tdAceitos.className = "py-2.5 px-3 text-center border-r border-slate-200";
+                tdAceitos.innerHTML = counts.accepted > 0 
+                    ? `<span class="inline-block bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full font-extrabold text-xs border border-emerald-300">${counts.accepted}</span>`
+                    : `<span class="text-slate-300 text-xs">0</span>`;
+
+                // Cell 5: NEGADOS
+                const tdNegados = document.createElement("td");
+                tdNegados.className = "py-2.5 px-3 text-center";
+                tdNegados.innerHTML = counts.denied > 0 
+                    ? `<span class="inline-block bg-rose-100 text-rose-800 px-2.5 py-0.5 rounded-full font-extrabold text-xs border border-rose-300">${counts.denied}</span>`
+                    : `<span class="text-slate-300 text-xs">0</span>`;
+
+                tr.appendChild(tdSeq);
+                tr.appendChild(tdNum);
+                tr.appendChild(tdName);
+                tr.appendChild(tdAceitos);
+                tr.appendChild(tdNegados);
+
+                tbody.appendChild(tr);
+            });
+        }
+
+        function populateSelectOptions() {
+            const select = document.getElementById("select-vigilante-action");
+            if (!select) return;
+
+            // Preserve current selection if valid
+            const selectedVal = select.value;
+            select.innerHTML = "";
+
+            INITIAL_VIGILANTES.forEach((name, index) => {
+                const option = document.createElement("option");
+                option.value = index;
+                const pos = index + 1;
+                const isCurrent = index === appState.currentIndex;
+                option.textContent = `${pos}º - ${name}${isCurrent ? ' (PRÓXIMO DA VEZ)' : ''}`;
+                select.appendChild(option);
+            });
+
+            // Default to current index if not manually changed
+            select.value = appState.currentIndex;
+        }
+
+        function renderAdminPanel() {
+            const adminPanel = document.getElementById("admin-panel");
+            const adminBtnLabel = document.getElementById("admin-btn-label");
+            
+            if (isAdmin) {
+                adminPanel?.classList.remove("hidden");
+                if (adminBtnLabel) adminBtnLabel.textContent = "Modo Encarregado (Ativo)";
+            } else {
+                adminPanel?.classList.add("hidden");
+                if (adminBtnLabel) adminBtnLabel.textContent = "Modo Encarregado";
+            }
+        }
+
+        function renderHistory() {
+            const container = document.getElementById("history-list");
+            const countEl = document.getElementById("history-count");
+            if (!container) return;
+
+            const history = appState.history || [];
+            if (countEl) countEl.textContent = `${history.length} registro(s)`;
+
+            if (history.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-400 italic text-center py-4">Nenhum registro efetuado ainda.</p>`;
+                return;
+            }
+
+            container.innerHTML = "";
+            // Render latest first
+            [...history].reverse().forEach((item) => {
+                const div = document.createElement("div");
+                const isAccepted = item.accepted;
+                div.className = `p-3 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs ${
+                    isAccepted ? 'bg-emerald-50/70 border-emerald-200 text-emerald-950' : 'bg-rose-50/70 border-rose-200 text-rose-950'
+                }`;
+
+                const dateStr = new Date(item.timestamp).toLocaleString("pt-BR", {
+                    day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
+                });
+
+                div.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <span class="px-2 py-0.5 rounded font-black text-[10px] uppercase ${
+                            isAccepted ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'
+                        }">
+                            ${isAccepted ? 'ACEITOU' : 'NEGOU'}
+                        </span>
+                        <span class="font-bold">${item.position}º ${item.name}</span>
+                        ${item.obs ? `<span class="text-slate-600 italic">("${item.obs}")</span>` : ''}
+                    </div>
+                    <div class="text-[11px] text-slate-500 font-medium">
+                        ${dateStr}
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        // --- BUSINESS LOGIC & ROTATION ---
+        async function commitState(newState) {
+            appState = newState;
+            saveLocalState();
+            renderUI();
+
+            // Sync with Firebase if connected
+            if (db) {
+                try {
+                    const docRef = doc(db, "artifacts", "escala_extra", "public", "data", "main");
+                    await setDoc(docRef, appState);
+                } catch (e) {
+                    console.error("Erro ao salvar no Firestore:", e);
+                    showToast("Erro ao sincronizar na nuvem. Salvo localmente.", "error");
+                }
+            }
+        }
+
+        window.handleRegisterAction = async function(accepted) {
+            if (!isAdmin) {
+                showToast("Apenas o encarregado pode registrar ações.", "error");
+                return;
+            }
+
+            const select = document.getElementById("select-vigilante-action");
+            const obsInput = document.getElementById("input-obs");
+            
+            const targetIndex = parseInt(select.value, 10);
+            if (isNaN(targetIndex) || targetIndex < 0 || targetIndex >= INITIAL_VIGILANTES.length) return;
+
+            const targetName = INITIAL_VIGILANTES[targetIndex];
+            const obsText = obsInput ? obsInput.value.trim() : "";
+
+            // Update counts
+            const newCounts = [...appState.counts];
+            if (!newCounts[targetIndex]) newCounts[targetIndex] = { accepted: 0, denied: 0 };
+
+            if (accepted) {
+                newCounts[targetIndex].accepted += 1;
+            } else {
+                newCounts[targetIndex].denied += 1;
+            }
+
+            // Next turn index ALWAYS moves to the position below the target guard
+            const nextIndex = (targetIndex + 1) % INITIAL_VIGILANTES.length;
+
+            const newHistoryItem = {
+                id: Date.now(),
+                targetIndex: targetIndex,
+                position: targetIndex + 1,
+                name: targetName,
+                accepted: accepted,
+                obs: obsText,
+                timestamp: new Date().toISOString()
+            };
+
+            const updatedState = {
+                currentIndex: nextIndex,
+                counts: newCounts,
+                history: [...(appState.history || []), newHistoryItem]
+            };
+
+            if (obsInput) obsInput.value = "";
+
+            await commitState(updatedState);
+
+            const nextName = INITIAL_VIGILANTES[nextIndex];
+            showToast(
+                `Registrado: ${targetName} ${accepted ? 'ACEITOU' : 'NEGOU'}. Próximo em azul: ${nextIndex + 1}º ${nextName}`, 
+                accepted ? "success" : "info"
+            );
+        };
+
+        window.handleUndoLast = async function() {
+            if (!isAdmin) return;
+            if (!appState.history || appState.history.length === 0) {
+                showToast("Nenhum lançamento no histórico para desfazer.", "warning");
+                return;
+            }
+
+            const lastItem = appState.history[appState.history.length - 1];
+            const newHistory = appState.history.slice(0, -1);
+            
+            // Revert counts
+            const newCounts = [...appState.counts];
+            if (lastItem.accepted) {
+                newCounts[lastItem.targetIndex].accepted = Math.max(0, (newCounts[lastItem.targetIndex].accepted || 1) - 1);
+            } else {
+                newCounts[lastItem.targetIndex].denied = Math.max(0, (newCounts[lastItem.targetIndex].denied || 1) - 1);
+            }
+
+            // Return focus to the vigilante that was called
+            const updatedState = {
+                currentIndex: lastItem.targetIndex,
+                counts: newCounts,
+                history: newHistory
+            };
+
+            await commitState(updatedState);
+            showToast(`Desfeito último registro de ${lastItem.name}. A vez voltou para ele.`, "info");
+        };
+
+        window.confirmResetScale = function() {
+            if (!isAdmin) return;
+            showConfirmModal(
+                "Resetar Escala",
+                "Tem certeza que deseja reiniciar toda a contagem e voltar a vez para o 10º ELISNA?",
+                async () => {
+                    const newState = JSON.parse(JSON.stringify(DEFAULT_STATE));
+                    await commitState(newState);
+                    showToast("Escala reiniciada com sucesso!", "success");
+                }
+            );
+        };
+
+        // --- AUTH & ADMIN MODAL ---
+        const DEFAULT_PASS = "1234";
+
+        window.openAdminAuthModal = function() {
+            if (isAdmin) {
+                // Log out directly or prompt
+                logoutAdmin();
+                return;
+            }
+
+            showModalHTML(`
+                <div class="text-center mb-4">
+                    <div class="w-12 h-12 rounded-full bg-blue-100 text-blue-900 flex items-center justify-center mx-auto mb-2 text-xl">
+                        <i class="fa-solid fa-user-shield"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-800">Acesso do Encarregado</h3>
+                    <p class="text-xs text-slate-500">Digite a senha para alterar a vez e registrar extras.</p>
+                </div>
+                <form onsubmit="submitAdminAuth(event)">
+                    <div class="mb-4">
+                        <input type="password" id="admin-password-input" placeholder="Senha (Padrão: 1234)" autofocus
+                            class="w-full px-4 py-2.5 border border-slate-300 rounded-xl text-center text-lg tracking-widest font-bold focus:ring-2 focus:ring-blue-900 focus:outline-none">
+                    </div>
+                    <div class="flex gap-2">
+                        <button type="button" onclick="closeModal()" class="flex-1 py-2.5 border border-slate-200 text-slate-600 rounded-xl font-bold text-xs hover:bg-slate-50">Cancelar</button>
+                        <button type="submit" class="flex-1 py-2.5 bg-blue-900 text-white rounded-xl font-bold text-xs hover:bg-blue-950 shadow-md">Entrar</button>
+                    </div>
+                </form>
+            `);
+        };
+
+        window.submitAdminAuth = function(e) {
+            e.preventDefault();
+            const passInput = document.getElementById("admin-password-input");
+            const pass = passInput ? passInput.value : "";
+
+            if (pass === DEFAULT_PASS) {
+                isAdmin = true;
+                closeModal();
+                renderUI();
+                showToast("Modo Encarregado ativado!", "success");
+            } else {
+                showToast("Senha incorreta!", "error");
+            }
+        };
+
+        window.logoutAdmin = function() {
+            isAdmin = false;
+            renderUI();
+            showToast("Sessão de Encarregado encerrada.", "info");
+        };
+
+        // --- FIREBASE REAL-TIME INTEGRATION ---
+        function initFirebaseIfConfigured() {
+            let config = null;
+            
+            // Check window injected or localStorage
+            const savedConfig = localStorage.getItem(FIREBASE_CONFIG_KEY);
+            if (savedConfig) {
+                try {
+                    config = JSON.parse(savedConfig);
+                } catch(e) {}
+            } else if (typeof __firebase_config !== "undefined") {
+                try {
+                    config = JSON.parse(__firebase_config);
+                } catch(e) {}
+            }
+
+            const syncText = document.getElementById("sync-text");
+
+            if (config && config.apiKey) {
+                try {
+                    const app = initializeApp(config);
+                    db = getFirestore(app);
+
+                    // Subscribe to real-time changes
+                    const docRef = doc(db, "artifacts", "escala_extra", "public", "data", "main");
+                    unsubscribeFirestore = onSnapshot(docRef, (snapshot) => {
+                        if (snapshot.exists()) {
+                            appState = snapshot.data();
+                            saveLocalState();
+                            renderUI();
+                        } else {
+                            // First time setup on firestore
+                            commitState(appState);
+                        }
+                    }, (err) => {
+                        console.error("Erro Firebase snapshot:", err);
+                        if (syncText) syncText.textContent = "Erro Nuvem (Usando Local)";
+                    });
+
+                    if (syncText) syncText.textContent = "Ao Vivo na Nuvem";
+                } catch(e) {
+                    console.error("Erro ao inicializar Firebase", e);
+                    if (syncText) syncText.textContent = "Modo Local";
+                }
+            } else {
+                if (syncText) syncText.textContent = "Modo Local";
+            }
+        }
+
+        window.openConfigModal = function() {
+            const currentCfg = localStorage.getItem(FIREBASE_CONFIG_KEY) || "";
+            showModalHTML(`
+                <div class="mb-4">
+                    <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-cloud-arrow-up text-blue-900"></i> Conectar Firebase (Nuvem)
+                    </h3>
+                    <p class="text-xs text-slate-500 mt-1">Cole aqui as chaves do seu projeto gratuito do Firebase para sincronizar instantaneamente com todos os celulares dos vigilantes no GitHub Pages.</p>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Cole seu firebaseConfig JSON:</label>
+                    <textarea id="firebase-cfg-input" rows="5" placeholder='{\n  "apiKey": "...",\n  "authDomain": "...",\n  "projectId": "..."\n}'
+                        class="w-full font-mono text-xs p-3 border border-slate-300 rounded-xl bg-slate-50 focus:ring-2 focus:ring-blue-900 focus:outline-none">${currentCfg}</textarea>
+                </div>
+                <div class="flex gap-2">
+                    <button type="button" onclick="closeModal()" class="flex-1 py-2.5 border border-slate-200 text-slate-600 rounded-xl font-bold text-xs">Cancelar</button>
+                    <button type="button" onclick="saveFirebaseConfig()" class="flex-1 py-2.5 bg-blue-900 text-white rounded-xl font-bold text-xs shadow-md">Salvar e Sincronizar</button>
+                </div>
+            `);
+        };
+
+        window.saveFirebaseConfig = function() {
+            const input = document.getElementById("firebase-cfg-input");
+            const val = input ? input.value.trim() : "";
+            if (!val) {
+                localStorage.removeItem(FIREBASE_CONFIG_KEY);
+                showToast("Configuração removida. Voltando ao modo local.", "info");
+                closeModal();
+                setTimeout(() => location.reload(), 500);
+                return;
+            }
+
+            try {
+                JSON.parse(val); // validate json
+                localStorage.setItem(FIREBASE_CONFIG_KEY, val);
+                showToast("Configuração salva! Reiniciando sincronização...", "success");
+                closeModal();
+                setTimeout(() => location.reload(), 500);
+            } catch(e) {
+                showToast("JSON do Firebase inválido. Verifique a formatação.", "error");
+            }
+        };
+
+        // --- UI HELPERS (MODALS & TOASTS) ---
+        function showToast(message, type = "info") {
+            const container = document.getElementById("toast-container");
+            if (!container) return;
+
+            const toast = document.createElement("div");
+            const bgColors = {
+                success: "bg-emerald-800 text-white border-emerald-700",
+                error: "bg-rose-800 text-white border-rose-700",
+                warning: "bg-amber-600 text-white border-amber-500",
+                info: "bg-slate-900 text-white border-slate-700"
+            };
+
+            toast.className = `pointer-events-auto px-4 py-3 rounded-xl shadow-xl text-xs font-semibold border flex items-center gap-2 transform transition-all duration-300 translate-y-2 opacity-0 ${bgColors[type] || bgColors.info}`;
+            toast.innerHTML = `<span>${message}</span>`;
+
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.remove("translate-y-2", "opacity-0");
+            }, 10);
+
+            setTimeout(() => {
+                toast.classList.add("opacity-0", "translate-y-2");
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        function showModalHTML(html) {
+            const overlay = document.getElementById("modal-overlay");
+            const content = document.getElementById("modal-content");
+            if (!overlay || !content) return;
+
+            content.innerHTML = html;
+            overlay.classList.remove("hidden");
+
+            setTimeout(() => {
+                content.classList.remove("scale-95", "opacity-0");
+                content.classList.add("scale-100", "opacity-100");
+            }, 10);
+        }
+
+        window.closeModal = function() {
+            const overlay = document.getElementById("modal-overlay");
+            const content = document.getElementById("modal-content");
+            if (!overlay || !content) return;
+
+            content.classList.remove("scale-100", "opacity-100");
+            content.classList.add("scale-95", "opacity-0");
+
+            setTimeout(() => {
+                overlay.classList.add("hidden");
+            }, 200);
+        };
+
+        function showConfirmModal(title, text, onConfirm) {
+            showModalHTML(`
+                <div class="text-center mb-4">
+                    <div class="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto mb-2 text-xl">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-800">${title}</h3>
+                    <p class="text-xs text-slate-500 mt-1">${text}</p>
+                </div>
+                <div class="flex gap-2">
+                    <button type="button" onclick="closeModal()" class="flex-1 py-2.5 border border-slate-200 text-slate-600 rounded-xl font-bold text-xs hover:bg-slate-50">Cancelar</button>
+                    <button type="button" id="modal-confirm-btn" class="flex-1 py-2.5 bg-rose-600 text-white rounded-xl font-bold text-xs hover:bg-rose-700 shadow-md">Confirmar</button>
+                </div>
+            `);
+
+            document.getElementById("modal-confirm-btn")?.addEventListener("click", () => {
+                closeModal();
+                onConfirm();
+            });
+        }
+
+        // --- INIT APP ---
+        window.addEventListener("DOMContentLoaded", () => {
+            loadLocalState();
+            renderUI();
+            initFirebaseIfConfigured();
+        });
+    </script>
+</body>
+</html>
